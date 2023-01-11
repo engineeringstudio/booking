@@ -17,19 +17,48 @@
  * along with booking.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-layui.use('laydate', function () {
-    var laydate = layui.laydate;
+function layuiInit() {
+    layui.use('laydate', function () {
+        var laydate = layui.laydate;
 
-    laydate.render({
-        elem: '#date'
+        laydate.render({
+            elem: '#date'
+        });
     });
-});
 
-layui.use('form', function () {
-    var form = layui.form;
+    layui.use('form', function () {
+        var form = layui.form;
 
-    form.on('submit(form)', function (data) {
-        layer.msg(JSON.stringify(data.field));
-        return false;
+        form.on('submit(form)', function (data) {
+            var request = new XMLHttpRequest();
+            var backend = getDomain();
+
+            request.withCredentials = true;
+            request.open("POST", backend + "/add");
+            request.send(JSON.stringify(data.field));
+            request.addEventListener("load", function () {
+                if (request.status == 200) {
+                    layer.msg("提交成功");
+                } else {
+                    layer.msg("提交失败");
+                }
+            });
+            return false;
+        });
     });
-});
+}
+
+
+function getDomain() {
+    var url = "config.json"
+    var request = new XMLHttpRequest();
+    request.open("get", url, false);
+    request.send(null);
+    if (request.readyState == 4) {
+        if (request.status == 200) {
+            return JSON.parse(request.responseText)["backend"];
+        } else {
+            return "api/add";
+        }
+    }
+}
