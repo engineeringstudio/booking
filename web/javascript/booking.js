@@ -17,3 +17,19 @@
  * along with booking.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+layui.use('laydate', function () {
+    var laydate = layui.laydate;
+
+    laydate.render({
+        elem: '#date'
+    });
+});
+
+layui.use('form', function () {
+    var form = layui.form;
+
+    form.on('submit(form)', function (data) {
+        layer.msg(JSON.stringify(data.field));
+        return false;
+    });
+});
