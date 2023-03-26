@@ -1,19 +1,45 @@
-/**
- * Copyright (C) 2023 CharlieYu4994
- * 
- * This file is part of booking.
- * 
- * booking is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- * 
- * booking is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with booking.  If not, see <http://www.gnu.org/licenses/>.
- */
+package main
 
+import (
+	"database/sql"
+	"flag"
+	"net/http"
+)
+
+var conf config
+var confpath string
+
+var tech *handler
+
+func init() {
+	flag.StringVar(&confpath, "c", "./config.json", "Set the config path")
+
+	flag.Parse()
+
+	err := readConf(confpath, &conf)
+	if err != nil {
+		panic("OpenConfigError")
+	}
+
+	db, err := sql.Open("sqlite3", conf.DataBase)
+	if err != nil {
+		panic("OpenDatabaseError")
+	}
+
+	tech = NewHandler("tech", db)
+
+	for i := 0; i < len(conf.WhiteList); i++ {
+		tech.whitelist[conf.WhiteList[i]] = struct{}{}
+	}
+
+	http.HandleFunc("/"+tech.name, tech.add)
+}
+
+func main() {
+	if conf.EnableTLS {
+		http.ListenAndServeTLS("0.0.0.0:"+conf.Port,
+			conf.CertPath, conf.KeyPath, nil)
+	} else {
+		http.ListenAndServe("0.0.0.0:"+conf.Port, nil)
+	}
+}
