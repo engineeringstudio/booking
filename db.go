@@ -21,7 +21,7 @@ func newDbOperator(db *sql.DB, table string) (*dbOperator, error) {
 	}
 
 	queryCmd, err := db.Prepare(
-		fmt.Sprintf("SELECT NAME,SNO,PN,DATE,INFO FROM %s ORDER BY ID DESC",
+		fmt.Sprintf("SELECT NAME,SNO,PN,DATE,INFO FROM %s WHERE DATE=?",
 			table))
 	if err != nil {
 		return nil, err
@@ -33,11 +33,28 @@ func newDbOperator(db *sql.DB, table string) (*dbOperator, error) {
 	}, nil
 }
 
-func (d *dbOperator) insert(date, baseUrl string) error {
-	_, err := d.insertCmd.Exec(date, baseUrl)
+func (d *dbOperator) insert(r *request) error {
+	_, err := d.insertCmd.Exec(r.name, r.sno, r.pn, r.date, r.info)
 	return err
 }
 
-func (d *dbOperator) query(num int) (*[]list, error) {
-	return nil, nil
+func (d *dbOperator) query(date string) (*[]request, error) {
+	var req request
+	tmp := make([]request, 0, 10)
+
+	result, err := d.queryCmd.Query(date)
+	if err != nil {
+		return nil, err
+	}
+
+	for result.Next() {
+		err = result.Scan(&req.name, &req.sno, &req.pn, &req.date, &req.info)
+		if err != nil {
+			return nil, err
+		}
+
+		tmp = append(tmp, req)
+	}
+
+	return &tmp, nil
 }

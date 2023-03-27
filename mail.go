@@ -18,8 +18,9 @@ func newMailSender(id, acc, pwd, host string) *mailSender {
 	}
 }
 
-func (m *mailSender) sand(msg []byte) error {
+func (m *mailSender) send(msg string) error {
 	auth := smtp.PlainAuth(m.id, m.acc, m.pwd, m.host)
 
-	return smtp.SendMail(m.host+":587", auth, m.acc, conf.MailList, msg)
+	return smtp.SendMail(m.host+":587", auth,
+		m.acc, conf.MailList, []byte(msg))
 }

@@ -26,7 +26,9 @@ func init() {
 		panic("OpenDatabaseError")
 	}
 
-	tech = NewHandler("tech", db)
+	mail := newMailSender(conf.Mail, conf.Mail, conf.Passwd, conf.MailServer)
+
+	tech = NewHandler("tech", db, mail)
 
 	for i := 0; i < len(conf.WhiteList); i++ {
 		tech.whitelist[conf.WhiteList[i]] = struct{}{}

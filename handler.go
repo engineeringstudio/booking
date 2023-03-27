@@ -2,18 +2,36 @@ package main
 
 import (
 	"database/sql"
+	"encoding/hex"
+	"fmt"
+	"hash/fnv"
 	"net/http"
+	"time"
 )
 
 type handler struct {
 	name      string
 	whitelist map[string]struct{}
+
+	db   *dbOperator
+	mail *mailSender
 }
 
-func NewHandler(name string, db *sql.DB) *handler {
+type request struct {
+	name, sno, pn, date, info string
+}
+
+func NewHandler(name string, db *sql.DB, mail *mailSender) *handler {
+	dbOperator, err := newDbOperator(db, name)
+	if err != nil {
+		return nil
+	}
+
 	return &handler{
 		name:      name,
 		whitelist: make(map[string]struct{}),
+		db:        dbOperator,
+		mail:      mail,
 	}
 }
 
@@ -45,7 +63,22 @@ func (h *handler) add(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	key := ""
+	var tmp request
+
+	tmp.name = r.PostFormValue("name")
+	tmp.sno = r.PostFormValue("id")
+	tmp.pn = r.PostFormValue("phone")
+	tmp.date = r.PostFormValue("date")
+	tmp.info = r.PostFormValue("issue")
+
+	err := h.db.insert(&tmp)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	hasher := fnv.New64()
+	key := hex.EncodeToString(hasher.Sum([]byte(tmp.name)))
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     "token_" + key,
@@ -56,4 +89,22 @@ func (h *handler) add(w http.ResponseWriter, r *http.Request) {
 	})
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(key))
+}
+
+func (h *handler) send(w http.ResponseWriter, r *http.Request) {
+	ok := h.checkOrigin(w, r)
+	if r.Method != "GET" || !ok {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	date := time.Now()
+	tmp, err := h.db.query(date.Format("2006-01-02"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	h.mail.send(fmt.Sprint(tmp))
+	w.WriteHeader(http.StatusOK)
 }
