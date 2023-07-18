@@ -34,7 +34,8 @@ function layuiInit() {
             var backend = getDomain();
 
             request.withCredentials = true;
-            request.open("POST", backend + "/add");
+            request.open("POST", backend);
+            request.setRequestHeader('Content-Type', 'application/json; charset=UTF-8')
             request.send(JSON.stringify(data.field));
             request.addEventListener("load", function () {
                 if (request.status == 200) {
