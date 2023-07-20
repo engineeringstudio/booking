@@ -34,7 +34,8 @@ func init() {
 		tech.whitelist[conf.WhiteList[i]] = struct{}{}
 	}
 
-	http.HandleFunc("/"+tech.name, tech.add)
+	http.HandleFunc("/add", tech.add)
+	http.HandleFunc("/sand", tech.send)
 }
 
 func main() {

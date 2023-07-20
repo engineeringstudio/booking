@@ -34,7 +34,7 @@ func newDbOperator(db *sql.DB, table string) (*dbOperator, error) {
 }
 
 func (d *dbOperator) insert(r *request) error {
-	_, err := d.insertCmd.Exec(r.name, r.sno, r.pn, r.date, r.info)
+	_, err := d.insertCmd.Exec(r.Name, r.Sno, r.Pn, r.Date, r.Info)
 	return err
 }
 
@@ -48,7 +48,7 @@ func (d *dbOperator) query(date string) (*[]request, error) {
 	}
 
 	for result.Next() {
-		err = result.Scan(&req.name, &req.sno, &req.pn, &req.date, &req.info)
+		err = result.Scan(&req.Name, &req.Sno, &req.Pn, &req.Date, &req.Info)
 		if err != nil {
 			return nil, err
 		}

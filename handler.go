@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"hash/fnv"
 	"net/http"
@@ -18,7 +19,11 @@ type handler struct {
 }
 
 type request struct {
-	name, sno, pn, date, info string
+	Name string `json:"name"`
+	Sno  string `json:"id"`
+	Pn   string `json:"phone"`
+	Date string `json:"date"`
+	Info string `json:"issue"`
 }
 
 func NewHandler(name string, db *sql.DB, mail *mailSender) *handler {
@@ -65,20 +70,20 @@ func (h *handler) add(w http.ResponseWriter, r *http.Request) {
 
 	var tmp request
 
-	tmp.name = r.PostFormValue("name")
-	tmp.sno = r.PostFormValue("id")
-	tmp.pn = r.PostFormValue("phone")
-	tmp.date = r.PostFormValue("date")
-	tmp.info = r.PostFormValue("issue")
+	err := json.NewDecoder(r.Body).Decode(&tmp)
+	if err != nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 
-	err := h.db.insert(&tmp)
+	err = h.db.insert(&tmp)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	hasher := fnv.New64()
-	key := hex.EncodeToString(hasher.Sum([]byte(tmp.name)))
+	key := hex.EncodeToString(hasher.Sum([]byte(tmp.Name)))
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     "token_" + key,
