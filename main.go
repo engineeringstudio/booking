@@ -4,19 +4,21 @@ import (
 	"database/sql"
 	"flag"
 	"net/http"
+
+	utils "booking/internel"
 )
 
-var conf config
+var conf utils.Config
 var confpath string
 
-var tech *handler
+var tech *utils.Handler
 
 func init() {
 	flag.StringVar(&confpath, "c", "./config.json", "Set the config path")
 
 	flag.Parse()
 
-	err := readConf(confpath, &conf)
+	err := utils.ReadConf(confpath, &conf)
 	if err != nil {
 		panic("OpenConfigError")
 	}
@@ -26,16 +28,12 @@ func init() {
 		panic("OpenDatabaseError")
 	}
 
-	mail := newMailSender(conf.Mail, conf.Mail, conf.Passwd, conf.MailServer)
+	mail := utils.NewMailSender(conf.MailList, conf.Mail, conf.Mail, conf.Passwd, conf.MailServer)
 
-	tech = NewHandler("tech", db, mail)
+	tech = utils.NewHandler("tech", conf.WhiteList, conf.MaxLength, db, mail)
 
-	for i := 0; i < len(conf.WhiteList); i++ {
-		tech.whitelist[conf.WhiteList[i]] = struct{}{}
-	}
-
-	http.HandleFunc("/add", tech.add)
-	http.HandleFunc("/sand", tech.send)
+	http.HandleFunc("/add", tech.Add)
+	http.HandleFunc("/sand", tech.Send)
 }
 
 func main() {

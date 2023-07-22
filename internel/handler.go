@@ -1,4 +1,4 @@
-package main
+package utils
 
 import (
 	"database/sql"
@@ -10,7 +10,8 @@ import (
 	"time"
 )
 
-type handler struct {
+type Handler struct {
+	maxLength int
 	name      string
 	whitelist map[string]struct{}
 
@@ -26,21 +27,30 @@ type request struct {
 	Info string `json:"issue"`
 }
 
-func NewHandler(name string, db *sql.DB, mail *mailSender) *handler {
+func NewHandler(name string, whitelist []string, maxLength int,
+	db *sql.DB, mail *mailSender) *Handler {
+
 	dbOperator, err := newDbOperator(db, name)
 	if err != nil {
 		return nil
 	}
 
-	return &handler{
+	tmp := make(map[string]struct{})
+
+	for i := 0; i < len(whitelist); i++ {
+		tmp[whitelist[i]] = struct{}{}
+	}
+
+	return &Handler{
+		maxLength: maxLength,
 		name:      name,
-		whitelist: make(map[string]struct{}),
+		whitelist: tmp,
 		db:        dbOperator,
 		mail:      mail,
 	}
 }
 
-func (h *handler) checkOrigin(w http.ResponseWriter, r *http.Request) bool {
+func (h *Handler) checkOrigin(w http.ResponseWriter, r *http.Request) bool {
 	origin := r.Header.Get("Origin")
 	if origin == "" {
 		return true
@@ -56,14 +66,14 @@ func (h *handler) checkOrigin(w http.ResponseWriter, r *http.Request) bool {
 	return true
 }
 
-func (h *handler) add(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Add(w http.ResponseWriter, r *http.Request) {
 	ok := h.checkOrigin(w, r)
 	if r.Method != "POST" || !ok {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	if r.ContentLength > int64(conf.MaxLength)*1024 {
+	if r.ContentLength > int64(h.maxLength)*1024 {
 		w.WriteHeader(http.StatusRequestEntityTooLarge)
 		return
 	}
@@ -96,7 +106,7 @@ func (h *handler) add(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(key))
 }
 
-func (h *handler) send(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Send(w http.ResponseWriter, r *http.Request) {
 	ok := h.checkOrigin(w, r)
 	if r.Method != "GET" || !ok {
 		w.WriteHeader(http.StatusMethodNotAllowed)

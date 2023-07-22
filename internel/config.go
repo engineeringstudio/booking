@@ -1,11 +1,11 @@
-package main
+package utils
 
 import (
 	"encoding/json"
 	"os"
 )
 
-type config struct {
+type Config struct {
 	EnableTLS  bool     `json:"enabletls"`
 	CertPath   string   `json:"certpath"`
 	KeyPath    string   `json:"keypath"`
@@ -19,7 +19,7 @@ type config struct {
 	MailList   []string `json:"maillist"`
 }
 
-func readConf(path string, conf *config) error {
+func ReadConf(path string, conf *Config) error {
 	_, err := os.Stat(path)
 	if err != nil || os.IsExist(err) {
 		return err
