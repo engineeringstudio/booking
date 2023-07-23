@@ -18,11 +18,18 @@
  */
 
 function layuiInit() {
-    layui.use('laydate', function () {
+    var backend = getDomain();
+
+    layui.use(['laydate', 'jquery'], function () {
+        var $ = layui.$;
         var laydate = layui.laydate;
 
         laydate.render({
-            elem: '#date'
+            elem: '#date',
+            min: 0,
+            max: 7,
+            showBottom: false,
+            ready: checkQuota(backend)
         });
     });
 
@@ -30,36 +37,67 @@ function layuiInit() {
         var form = layui.form;
 
         form.on('submit(form)', function (data) {
-            var request = new XMLHttpRequest();
-            var backend = getDomain();
-
-            request.withCredentials = true;
-            request.open("POST", backend);
-            request.setRequestHeader('Content-Type', 'application/json; charset=UTF-8')
-            request.send(JSON.stringify(data.field));
-            request.addEventListener("load", function () {
-                if (request.status == 200) {
+            fetch(backend, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json; charset=UTF-8',
+                    'credentials': 'include'
+                },
+                body: JSON.stringify(data.field)
+            })
+                .then(response => {
+                    if (!response.status == 200) {
+                        layer.msg("提交失败");
+                    }
                     layer.msg("提交成功");
-                } else {
-                    layer.msg("提交失败");
-                }
-            });
+                });
             return false;
         });
     });
 }
 
-
 function getDomain() {
-    var url = "config.json"
-    var request = new XMLHttpRequest();
-    request.open("get", url, false);
-    request.send(null);
-    if (request.readyState == 4) {
-        if (request.status == 200) {
-            return JSON.parse(request.responseText)["backend"];
-        } else {
-            return "api/add";
+    fetch('config.json', {
+        method: 'GET'
+    })
+        .then(response => {
+            if (!response.status == 200) {
+                return "api/add";
+            }
+            return response.json().backend;
+        });
+}
+
+function checkQuota(backend) {
+    var cal = $('#layui-laydate1');
+    var dateItems = cal.find('.layui-laydate-content table tr td');
+    layui.each(dateItems, function (index, item) {
+        if (item.cellIndex == 5 || item.cellIndex == 6) {
+            item.addClass("laydate-disabled")
+            return
         }
-    }
+
+        var date = item.getAttribute('lay-ymd');
+        fetch(backend + '/check', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json; charset=UTF-8',
+                'credentials': 'include'
+            },
+            body: JSON.stringify({
+                date: date
+            })
+        })
+            .then(response => {
+                if (response.status == 200) {
+                    return response.json();
+                }
+                return { status: false }
+            })
+            .then(data => {
+                if (data.status == false) {
+                    item.addClass("laydate-disabled")
+                }
+            });
+    });
 }
