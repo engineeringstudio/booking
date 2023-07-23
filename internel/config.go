@@ -1,4 +1,4 @@
-package utils
+package internel
 
 import (
 	"encoding/json"
@@ -13,8 +13,9 @@ type Config struct {
 	Mail       string   `json:"mail"`
 	MailServer string   `json:"mailserver"`
 	Passwd     string   `json:"passwd"`
-	MaxLength  int      `json:"maxlength"`
 	DataBase   string   `json:"database"`
+	MaxLength  int      `json:"maxlength"`
+	Quota      int      `json:"quota"`
 	WhiteList  []string `json:"whitelist"`
 	MailList   []string `json:"maillist"`
 }

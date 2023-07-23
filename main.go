@@ -5,20 +5,20 @@ import (
 	"flag"
 	"net/http"
 
-	utils "booking/internel"
+	"booking/internel"
 )
 
-var conf utils.Config
+var conf internel.Config
 var confpath string
 
-var tech *utils.Handler
+var tech *internel.Handler
 
 func init() {
 	flag.StringVar(&confpath, "c", "./config.json", "Set the config path")
 
 	flag.Parse()
 
-	err := utils.ReadConf(confpath, &conf)
+	err := internel.ReadConf(confpath, &conf)
 	if err != nil {
 		panic("OpenConfigError")
 	}
@@ -28,12 +28,12 @@ func init() {
 		panic("OpenDatabaseError")
 	}
 
-	mail := utils.NewMailSender(conf.MailList, conf.Mail, conf.Mail, conf.Passwd, conf.MailServer)
+	mail := internel.NewMailSender(conf.MailList, conf.Mail, conf.Mail, conf.Passwd, conf.MailServer)
 
-	tech = utils.NewHandler("tech", conf.WhiteList, conf.MaxLength, db, mail)
+	tech = internel.NewHandler(&conf, db, mail)
 
 	http.HandleFunc("/add", tech.Add)
-	http.HandleFunc("/sand", tech.Send)
+	http.HandleFunc("/send", tech.Send)
 }
 
 func main() {

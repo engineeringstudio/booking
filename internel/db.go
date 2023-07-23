@@ -1,4 +1,4 @@
-package utils
+package internel
 
 import (
 	"database/sql"
@@ -10,6 +10,7 @@ import (
 type dbOperator struct {
 	insertCmd *sql.Stmt
 	queryCmd  *sql.Stmt
+	countCmd  *sql.Stmt
 }
 
 func newDbOperator(db *sql.DB, table string) (*dbOperator, error) {
@@ -27,9 +28,17 @@ func newDbOperator(db *sql.DB, table string) (*dbOperator, error) {
 		return nil, err
 	}
 
+	countCmd, err := db.Prepare(
+		fmt.Sprintf("SELECT COUNT(DATE) AS COUNT FROM %s WHERE DATE=?",
+			table))
+	if err != nil {
+		return nil, err
+	}
+
 	return &dbOperator{
 		insertCmd: insertCmd,
 		queryCmd:  queryCmd,
+		countCmd:  countCmd,
 	}, nil
 }
 
@@ -57,4 +66,17 @@ func (d *dbOperator) query(date string) (*[]request, error) {
 	}
 
 	return &tmp, nil
+}
+
+func (d *dbOperator) count(date string) (int, error) {
+	result, err := d.queryCmd.Query(date)
+	if err != nil {
+		return 0, err
+	}
+
+	var count int
+	result.Next()
+	result.Scan(&count)
+
+	return count, nil
 }
