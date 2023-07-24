@@ -21,15 +21,17 @@ function layuiInit() {
     var backend = getDomain();
 
     layui.use(['laydate', 'jquery'], function () {
-        var $ = layui.$;
         var laydate = layui.laydate;
+        var $ = layui.$;
 
         laydate.render({
             elem: '#date',
             min: 0,
             max: 7,
             showBottom: false,
-            ready: checkQuota(backend)
+            ready: function (date) {
+                checkQuota($, backend);
+            }
         });
     });
 
@@ -68,16 +70,18 @@ function getDomain() {
         });
 }
 
-function checkQuota(backend) {
+function checkQuota($ ,backend) {
     var cal = $('#layui-laydate1');
-    var dateItems = cal.find('.layui-laydate-content table tr td');
+    var dateItems = cal.find('.layui-laydate-content table tbody tr td');
     layui.each(dateItems, function (index, item) {
         if (item.cellIndex == 5 || item.cellIndex == 6) {
-            item.addClass("laydate-disabled")
-            return
+            item = $(item);
+            item.addClass("laydate-disabled");
+            return;
         }
 
         var date = item.getAttribute('lay-ymd');
+        item = $(item);
         fetch(backend + '/check', {
             method: 'POST',
             headers: {
@@ -92,11 +96,11 @@ function checkQuota(backend) {
                 if (response.status == 200) {
                     return response.json();
                 }
-                return { status: false }
+                return { status: false };
             })
             .then(data => {
                 if (data.status == false) {
-                    item.addClass("laydate-disabled")
+                    item.addClass("laydate-disabled");
                 }
             });
     });
