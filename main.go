@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"flag"
+	"fmt"
 	"net/http"
 
 	"booking/internel"
@@ -20,20 +21,26 @@ func init() {
 
 	err := internel.ReadConf(confpath, &conf)
 	if err != nil {
+		fmt.Println(err)
 		panic("OpenConfigError")
 	}
 
 	db, err := sql.Open("sqlite3", conf.DataBase)
 	if err != nil {
+		fmt.Println(err)
 		panic("OpenDatabaseError")
 	}
 
 	mail := internel.NewMailSender(conf.MailList, conf.Mail, conf.Mail, conf.Passwd, conf.MailServer)
 
-	tech = internel.NewHandler(&conf, db, mail)
+	tech, err = internel.NewHandler(&conf, db, mail)
+	if err != nil {
+		fmt.Println(err)
+		panic("OpenHandlerErr")
+	}
 
+	go tech.UpdateTask()
 	http.HandleFunc("/add", tech.Add)
-	http.HandleFunc("/send", tech.Send)
 }
 
 func main() {

@@ -12,11 +12,11 @@ import (
 
 type Handler struct {
 	maxLength int
-	quota     int
 	whitelist map[string]struct{}
-	nums      map[string]int
+	quota     map[string]int
 
 	db   *dbOperator
+	db_n *dbOperator
 	mail *mailSender
 }
 
@@ -28,21 +28,51 @@ type request struct {
 	Info string `json:"issue"`
 }
 
-func NewHandler(conf *Config, db *sql.DB, mail *mailSender) *Handler {
+func getDuration() time.Duration {
+	now := time.Now()
+	tmp := now.Format("20060102")
+	today, _ := time.Parse("20060102", tmp)
+	ret := today.Add(time.Second * 10).Sub(now)
+	return ret
+}
 
+func NewHandler(conf *Config, db *sql.DB, mail *mailSender) (*Handler, error) {
 	now := time.Now()
 
-	dbOperator, err := newDbOperator(db, now.Format("2006-01-02"))
+	dbOperator, err := newDbOperator(db, now.Format("200601"))
 	if err != nil {
-		return nil
+		return nil, err
+	}
+
+	dbOperator_n, err := newDbOperator(db, now.AddDate(0, 1, 0).Format("200601"))
+	if err != nil {
+		return nil, err
 	}
 
 	quota := make(map[string]int)
 
+	fmt.Println("1")
+
 	for i := conf.Quota; i >= 0; i-- {
 		date := now.Format("2006-01-02")
-		quota[date], _ = dbOperator.count(date)
-		now = now.Add(time.Hour * 24)
+
+		a, err := dbOperator.count(date)
+		if err != nil {
+			return nil, err
+		}
+
+		b, err := dbOperator_n.count(date)
+		if err != nil {
+			return nil, err
+		}
+
+		if a >= b {
+			quota[date] = conf.MaxLength - a
+		} else {
+			quota[date] = conf.MaxLength - b
+		}
+
+		now = now.AddDate(0, 0, 1)
 	}
 
 	whiteList := make(map[string]struct{})
@@ -51,13 +81,24 @@ func NewHandler(conf *Config, db *sql.DB, mail *mailSender) *Handler {
 		whiteList[conf.WhiteList[i]] = struct{}{}
 	}
 
+	fmt.Println(conf.WhiteList)
+
 	return &Handler{
 		maxLength: conf.MaxLength,
-		quota:     conf.Quota,
-		nums:      quota,
+		quota:     quota,
 		whitelist: whiteList,
 		db:        dbOperator,
+		db_n:      dbOperator_n,
 		mail:      mail,
+	}, nil
+}
+
+func (h *Handler) UpdateTask() {
+	timer := time.NewTimer(0)
+	for {
+		<-timer.C
+		h.db.createTable(time.Now().Format("200601"))
+		timer.Reset(getDuration())
 	}
 }
 
@@ -97,7 +138,7 @@ func (h *Handler) Add(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if h.nums[tmp.Date] >= h.maxLength {
+	if h.quota[tmp.Date] > 0 {
 		w.WriteHeader(http.StatusNotAcceptable)
 		return
 	}
@@ -107,7 +148,7 @@ func (h *Handler) Add(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	h.nums[tmp.Date]++
+	h.quota[tmp.Date]--
 
 	hasher := fnv.New64()
 	key := hex.EncodeToString(hasher.Sum([]byte(tmp.Name)))
@@ -162,7 +203,7 @@ func (h *Handler) Check(w http.ResponseWriter, r *http.Request) {
 	resp := make(map[string]bool)
 	resp["status"] = true
 
-	if h.nums[tmp.Date] >= h.maxLength {
+	if h.quota[tmp.Date] > 0 {
 		resp["status"] = false
 	}
 

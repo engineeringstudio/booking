@@ -10,26 +10,39 @@ import (
 type dbOperator struct {
 	insertCmd *sql.Stmt
 	queryCmd  *sql.Stmt
+	createCmd *sql.Stmt
 	countCmd  *sql.Stmt
 }
 
 func newDbOperator(db *sql.DB, table string) (*dbOperator, error) {
 	insertCmd, err := db.Prepare(
-		fmt.Sprintf("INSERT INTO %s(NAME,SNO,PN,DATE,INFO)  values(?,?,?,?,?)",
+		fmt.Sprintf("INSERT INTO [%s](NAME,SNO,PN,DATE,INFO)  values(?,?,?,?,?)",
 			table))
 	if err != nil {
 		return nil, err
 	}
 
 	queryCmd, err := db.Prepare(
-		fmt.Sprintf("SELECT NAME,SNO,PN,DATE,INFO FROM %s WHERE DATE=?",
+		fmt.Sprintf("SELECT NAME,SNO,PN,DATE,INFO FROM [%s] WHERE DATE=?",
 			table))
 	if err != nil {
 		return nil, err
 	}
 
+	createCmd, err := db.Prepare(
+		`CREATE TABLE "?" (
+		ID   INTEGER PRIMARY KEY ASC AUTOINCREMENT
+					 UNIQUE
+					 NOT NULL,
+		NAME TEXT    NOT NULL,
+		SNO  TEXT    NOT NULL,
+		PN   TEXT    NOT NULL,
+		DATE TEXT    NOT NULL,
+		INFO TEXT    NOT NULL
+	);`)
+
 	countCmd, err := db.Prepare(
-		fmt.Sprintf("SELECT COUNT(DATE) AS COUNT FROM %s WHERE DATE=?",
+		fmt.Sprintf("SELECT COUNT(DATE) AS COUNT FROM [%s] WHERE DATE=?",
 			table))
 	if err != nil {
 		return nil, err
@@ -38,6 +51,7 @@ func newDbOperator(db *sql.DB, table string) (*dbOperator, error) {
 	return &dbOperator{
 		insertCmd: insertCmd,
 		queryCmd:  queryCmd,
+		createCmd: createCmd,
 		countCmd:  countCmd,
 	}, nil
 }
@@ -66,6 +80,14 @@ func (d *dbOperator) query(date string) (*[]request, error) {
 	}
 
 	return &tmp, nil
+}
+
+func (d *dbOperator) createTable(name string) error {
+	_, err := d.createCmd.Exec(name)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (d *dbOperator) count(date string) (int, error) {
